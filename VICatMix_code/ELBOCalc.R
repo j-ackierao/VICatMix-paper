@@ -5,10 +5,8 @@ ELBOCalc <- function(X, model, prior){
   D = dim(X)[2]
   K = length(model$alpha)
   
-  EPSreshape = t(prior$eps) 
-  dim(EPSreshape) = c(1,maxNCat,D)
   prior2 = list(alpha = rep(prior$alpha, K),
-               eps = EPSreshape[rep(1,K),,])
+               eps = t(prior$eps))
   prioralpha <- prior2$alpha
   prioreps <- prior2$eps
   
@@ -49,11 +47,11 @@ ELBOCalc <- function(X, model, prior){
   
   Exp3 <- sum((prioralpha - 1)*Elogpi) + Cprioralpha #E(logp(pi)), sum will sum over all k. CHECKED
   
-  Exp4 <- sum((priorepsminusone)*ElogphiL) + sum(Cprioreps) #E(logp(phi)) I think this is correct but double check ElogphiL
+  Exp4 <- sum((priorepsminusone)*ElogphiL) + sum(Cprioreps) #E(logp(phi)) 
   
   logrnk <- log(rnk)
   logrnk[logrnk == -Inf] <- 0
-  Exp5 <- sum(rnk * logrnk) #E(q(Z)) this should be correct - element-wise multiplication
+  Exp5 <- sum(rnk * logrnk) #E(q(Z)) 
   
   Exp6 <- sum((alpha - 1)*Elogpi) + Cpostalpha #E(logq(pi))
   

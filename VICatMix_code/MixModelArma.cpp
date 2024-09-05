@@ -99,18 +99,18 @@ arma::cube firstepsCalc(double K, double maxNCat, double D, double N, arma::mat 
 
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
-arma::mat CpriorepsCalc(arma::cube prioreps, double K, double D, arma::vec nCat){
+arma::mat CpriorepsCalc(arma::mat prioreps, double K, double D, arma::vec nCat){
   arma::mat v(K, D);
   for (int d = 0; d < D; d++){
     double varCat = nCat(d);
     for (int k = 0; k < K; k++){
       double sum1 = 0; // Sum value
       for(int j = 0; j < varCat; j++){
-        sum1 += prioreps(k, j, d);
+        sum1 += prioreps(j, d);
       }
       double sum2 = 0;
       for (int j = 0; j < varCat; j++){
-        sum2 += lgamma(prioreps(k, j, d));
+        sum2 += lgamma(prioreps(j, d));
       }
       v(k, d) = lgamma(sum1) - sum2;
     }
@@ -157,13 +157,13 @@ arma::mat sumDElogphiCalc(arma::cube Elogphi, double K, double D, double N){
 
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
-arma::cube priorepsminusoneCalc(arma::cube prioreps, double K, double D, double maxNCat){
+arma::cube priorepsminusoneCalc(arma::mat prioreps, double K, double D, double maxNCat){
   arma::cube v(K, maxNCat, D);
   for (int l = 0; l < maxNCat; l++){
     for (int k = 0; k < K; k++){
       for(int d = 0; d < D; d++){
-        if (prioreps(k, l, d) != 0){
-          v(k, l, d) = prioreps(k, l, d) - 1;
+        if (prioreps(l, d) != 0){
+          v(k, l, d) = prioreps(l, d) - 1;
         } else{
           v(k, l, d) = 0;
         }
@@ -182,6 +182,24 @@ arma::cube epsminusoneCalc(arma::cube eps, double K, double D, double maxNCat){
       for(int d = 0; d < D; d++){
         if (eps(k, l, d) != 0){
           v(k, l, d) = eps(k, l, d) - 1;
+        } else{
+          v(k, l, d) = 0;
+        }
+      }
+    }
+  }
+  return v;
+}
+
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+arma::cube epsminuspriorepsCalc(arma::cube eps, arma::mat prioreps, double K, double D, double maxNCat){
+  arma::cube v(K, maxNCat, D);
+  for (int l = 0; l < maxNCat; l++){
+    for (int k = 0; k < K; k++){
+      for(int d = 0; d < D; d++){
+        if (eps(k, l, d) != 0){
+          v(k, l, d) = eps(k, l, d) - prioreps(l, d);
         } else{
           v(k, l, d) = 0;
         }
