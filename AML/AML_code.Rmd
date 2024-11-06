@@ -1,0 +1,153 @@
+---
+title: "Acute myeloid leukaemia (AML) data - code"
+author: "Jackie Rao"
+date: "`r Sys.Date()`"
+output:
+  BiocStyle::html_document:
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(pheatmap)
+library(RColorBrewer)
+```
+
+# Load data
+
+Load data from cBioPortal via the package cBioPortalR and clean-up into a binary data matrix suitable for clustering with VICatMix.
+
+```{r generateData}
+library(cbioportalR)
+library(maftools)
+library(dplyr)
+
+set_cbioportal_db(db = "public") #Set to public cBioPortal database
+
+#Load AML mutations from TCGA
+mutations <- get_mutations_by_study(study_id = "laml_tcga_pan_can_atlas_2018") 
+#Format columns in line with MAF files
+maf_conv_cols <- c("Hugo_Symbol", "Entrez_Gene_Id", "Sample_Key", "Patient_Key",
+                   "Molecular_Profile_ID", "Tumor_Sample_Barcode", "Patient_Id",
+                   "Study_Id", "Centre", "Mutation_Status", "Validation_Status",
+                   "Start_Position", "End_Position", "Reference_Allele", "Protein_Change", 
+                   "Variant_Classification", "NCBI_Build", "Variant_Type", "Keyword", "Chromosome",
+                   "Tumor_Seq_Allele2", "RefSeq", "Protein_position", "Protein_end_position",
+                   "t_alt_count", "t_ref_count", "normalAltCount", "normalRefCount") 
+colnames(mutations) <- maf_conv_cols
+mutations <- mutate(mutations, VAF = t_alt_count / (t_alt_count + t_ref_count))
+mutations <- mutations[mutations$Mutation_Status == "Somatic",] #Keep only somatic mutations
+
+#Convert to MAF 
+laml <- read.maf(mutations, useAll = TRUE)
+#Create mutation count matrix
+mtx <- mutCountMatrix(laml, includeSyn = FALSE, countOnly = NULL, removeNonMutated = FALSE)
+
+#Transpose mtx to have genes in columns and samples in row
+mtx <- t(mtx)
+#Convert counts to binary
+mtx.b <- apply(mtx, 2, function(x) ifelse(x > 0, 1, x)) # So 0 = no, 1 =yes
+
+mtx.b <- mtx.b[,-which(colSums(mtx.b) < 2)] #Remove mutations seen in less than 2 samples
+mtx.b <- mtx.b[-which(rowSums(mtx.b) < 1),] #Remove patients with no mutations
+
+```
+
+# Run VICatMix
+
+Perform the clustering, with 30 initialisations and 20 maximum clusters. Complete linkage and a 0.95 threshold for variable selection is used for the summarisation by default.
+
+Uncomment the below lines to run the computation - these have been commented out so the Rmd file runs quickly.
+
+```{r computation}
+
+#set.seed(205) 
+#library(VICatMix)
+#library(foreach)
+#library(doParallel)
+#library(doRNG)
+#registerDoParallel(30)
+
+#amlclust_avg <- runVICatMixVarSelAvg(mtx.b, 20, 0.01, inits = 30, parallel = TRUE)
+
+```
+
+# Plots
+
+## Heatmaps
+
+Load data for plotting - this is the output from the above computation.
+```{r load data}
+#Comment out the following line if VICatMix has been run by the user
+load("amlclust_avg.RData")
+```
+
+Create heatmaps with the 'pheatmap' package.
+```{r heatmaps}
+set.seed(205)
+library(pheatmap)
+
+rowshuffle <- sample(1:185) #Output of mutCountMatrix earlier puts rows/cols in a certain order - we want this 'random' for better data visualisation
+mtx.b <- mtx.b[rowshuffle,]
+labels <- amlclust_avg$labels_avg[rowshuffle]
+
+currentAnnotationRow <- data.frame(
+  Cluster = factor(labels)
+)
+rownames(currentAnnotationRow) <- rownames(mtx.b) 
+
+aml_genes <- colnames(mtx.b)[amlclust_avg$varsel_avg == 1]
+
+#Heatmap with selected variables
+pheatmap(mtx.b[order(labels),aml_genes], cluster_rows = F,
+         color = colorRampPalette(colors = c("white", "black"))(2),
+         annotation_row = currentAnnotationRow, cluster_cols = F, show_rownames = F, show_colnames = T)
+#Heatmap with all variables
+pheatmap(mtx.b[order(labels), sample(1:151)], cluster_rows = F,
+         color = colorRampPalette(colors = c("white", "black"))(2),
+         annotation_row = currentAnnotationRow, cluster_cols = F, show_rownames = F, show_colnames = F)
+
+
+```
+
+## ORA analysis
+Run ORA analysis and create corresponding plots.
+```{r ora}
+
+organism = "org.Hs.eg.db"
+BiocManager::install(organism, character.only = TRUE)
+library(organism, character.only = TRUE)
+library(enrichplot)
+library(DOSE)
+
+aml_entrez <- select(org.Hs.eg.db, 
+                     keys = aml_genes,
+                     columns = c("ENTREZID", "SYMBOL"),
+                     keytype = "SYMBOL")
+
+all_aml_entrez <- select(org.Hs.eg.db, 
+                         keys = colnames(mtx.b),
+                         columns = c("ENTREZID", "SYMBOL"),
+                         keytype = "SYMBOL")
+
+```
+
+```{r ora viz}
+library(cowplot) #Stitch two plots together
+library(ggplot2)
+
+AML_DO <- enrichDO(aml_entrez$ENTREZID, universe = all_aml_entrez$ENTREZID)
+dotplot(AML_DO, title = "Disease Ontology ORA", font.size = 10) + xlim(0.65, 1.02) + scale_size_continuous(range  = c(3, 7), 
+                                                                                                           limits = c(4, 6), 
+                                                                                                           breaks = c(4, 5, 6))
+AML_NCG <- enrichNCG(aml_entrez$ENTREZID, universe = all_aml_entrez$ENTREZID)
+ncg <- dotplot(AML_NCG, title = "Network of Cancer Genes", font.size = 10)
+AML_DGN <- enrichDGN(aml_entrez$ENTREZID, universe = all_aml_entrez$ENTREZID)
+dgn <- dotplot(AML_DGN, title = "DisGeNET", font.size = 10) + xlim(0.81, 1.02) + 
+  scale_size_continuous(range  = c(3, 7), 
+                        limits = c(4, 6), 
+                        breaks = c(4, 5, 6))
+cowplot::plot_grid(ncg, dgn, labels=LETTERS[1:2], rel_widths=c(.8, .8))
+
+
+```
