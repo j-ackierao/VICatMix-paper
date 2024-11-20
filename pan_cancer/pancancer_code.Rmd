@@ -1,0 +1,348 @@
+---
+title: "Pan-cancer cluster-of-clusters analysis - code"
+author: "Jackie Rao"
+date: "`r Sys.Date()`"
+output:
+  BiocStyle::html_document:
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(pheatmap)
+library(RColorBrewer)
+library(tidyverse)
+```
+
+# Load data
+
+Load and format data from Synapse consisting of cluster/subtype assignmments for each individual molecular data type - DNA methylation, - as in Hoadley et al. (2014).
+
+```{r synapse login}
+#install.packages("synapser", repos = c("http://ran.synapse.org", "https://cloud.r-project.org")) #need to add the Sage Bionetworks R Archive Network (RAN) to the repository list. Synapser depends on a Python installation: see https://r-docs.synapse.org/articles/installation.html for more information on installing this package
+
+library(synapser)
+synLogin(silent = TRUE) #Login to Synapse: see https://r-docs.synapse.org/articles/manageSynapseCredentials.html for examples of managing credentials
+
+```
+
+## DNA methylation data
+
+```{r dna methylation}
+
+dnameth_file <- synGet("syn1875816", downloadLocation = "~/pancan_data")
+methylationclustA <- read.csv('~/pancan_data/DNA_Methylation_Cluster_130519.csv', row.names = 1)
+methylationclust <- methylationclustA[!is.na(methylationclustA$Cluster),]
+rownames(methylationclust) <- NULL
+
+methylationclust$TCGA.ID <- substr(methylationclust$TCGA.ID,1,15)
+methduplicates <- which(duplicated(methylationclust$TCGA.ID))
+
+for (d in methduplicates){
+  otherdups <- which(methylationclust[,1] == methylationclust[d, 1])
+  for (i in 1:length(otherdups)) {
+    if (methylationclust[d, 2] != methylationclust[otherdups[i], 2]){
+      print(d)
+      print(otherdups[i])
+      print(methylationclust[d, 2])
+      print(methylationclust[otherdups[i], 2])
+    }
+  }
+}
+#Disrepency - 2061 and 2060 have the same TCGA ID but different clusters when 12
+
+
+methylationclustA %>%
+  filter(str_detect(TCGA.ID, "TCGA-BH-A1FE"))
+#TCGA-BH-A1FE-01A-11D-A13K-05 in Cluster 9, TCGA-BH-A1FE-06A-11D-A212-05 in Cluster 2, TCGA-BH-A1FE-11B-14D-A13T-05 is NA
+
+#methduplicates <- append(methduplicates, 2060)
+methylationclust <- methylationclust[-methduplicates,]
+colnames(methylationclust)[1] <- "ID"
+
+```
+
+
+## mRNA seq data
+
+```{r mrna data}
+mrna_file <- synGet("syn1715788", downloadLocation = "~/pancan_data")
+mrnaclustA <- read.csv('~/pancan_data/PanCan12.3602-corrected-v3.Subtypes.K16.txt', sep = "\t")
+mrnaclust <- mrnaclustA[,c('Sample', 'K16')]
+mrnaclust$Sample <- substr(mrnaclust$Sample,1,15)
+mrnaduplicates <- which(duplicated(mrnaclust$Sample)) #Duplicates
+
+for (d in mrnaduplicates){
+  otherdups <- which(mrnaclust[,1] == mrnaclust[d, 1])
+  for (i in 1:length(otherdups)) {
+    if (mrnaclust[d, 2] != mrnaclust[otherdups[i], 2]){
+      print(d)
+      print(otherdups[i])
+      print(mrnaclust[d, 2])
+      print(mrnaclust[otherdups[i], 2])
+    }
+  }
+}
+#Disrepancy in 656, 657
+mrnaclustA %>%
+  filter(str_detect(Sample, "TCGA-BH-A1FE"))
+#TCGA-BH-A1FE-01A-11R-A13Q-07, TCGA-BH-A1FE-06A-11R-A213-07 same duplicate as in DNA methylation
+
+#methduplicates <- append(methduplicates, 656)
+mrnaclust <- mrnaclust[-mrnaduplicates,]
+colnames(mrnaclust)[1] <- "ID"
+```
+
+## miRNA seq data
+
+```{r mirna}
+mirna_file <- synGet("syn2027079", downloadLocation = "~/pancan_data")
+mirnaclustA <- read.csv('~/pancan_data/miRNA.k15.txt', sep = "\t")
+mirnaclust <- as.data.frame(cbind(Sample = mirnaclustA$Sample, Cluster = mirnaclustA$Cluster, Disease_code = mirnaclustA$Disease_code))
+mirnaclust$Sample <- substr(mirnaclust$Sample,1,15)
+mirnaduplicates <- which(duplicated(mirnaclust$Sample)) #Duplicates
+
+for (d in mirnaduplicates){
+  otherdups <- which(mirnaclust[,1] == mirnaclust[d, 1])
+  for (i in 1:length(otherdups)) {
+    if (mirnaclust[d, 2] != mirnaclust[otherdups[i], 2]){
+      print(d)
+      print(otherdups[i])
+      print(mirnaclust[d, 2])
+      print(mirnaclust[otherdups[i], 2])
+    }
+  }
+}
+
+#List of duplicates
+#1726, 1101
+#2224, 1340
+#3079, 1422
+#3251, 1321
+#3617, 1842
+#3957, 3296
+#3958, 2980
+
+mirnaclustA[c(1726, 1101),]
+mirnaclustA[c(2224, 1340),]
+mirnaclustA[c(3079, 1422),]
+mirnaclustA[c(3251, 1321),]
+mirnaclustA[c(3617, 1842),]
+mirnaclustA[c(3957, 3296),]
+mirnaclustA[c(3958, 2980),]
+
+#Remove all of these for avoidance of doubt
+
+mirnaduplicates <- append(mirnaduplicates, c(1101, 1340, 1422, 1321, 1842, 3296, 2980))
+mirnaclust <- mirnaclust[-mirnaduplicates,]
+colnames(mirnaclust) <- c("ID", "miRNA", "Disease_code")
+```
+
+## RPPA data
+
+```{r rppa}
+rppa_file <- synGet("syn1756922", downloadLocation = "~/pancan_data")
+rppaclust <- read.csv('~/pancan_data/PanCan11_RBN_SimpleCluster_20130411.csv')
+rppaclust$ID <- gsub(".", "-", rppaclust$ID, fixed = TRUE)
+which(duplicated(rppaclust$ID)) #No duplicates
+```
+
+## SCNA data
+
+```{r scna}
+scna_file <- synGet("syn1712142", downloadLocation = "~/pancan_data")
+scnaclust <- read.csv('~/pancan_data/SCNA_Cluster_table.txt', sep = "\t")
+scnaclust$ID <- substr(scnaclust$sample,1,15)
+which(duplicated(scnaclust$ID)) #No duplicates
+```
+
+# Format data
+
+Create a Cluster of Clusters from Hoadley et al.'s cluster subtype assignments.
+
+```{r format}
+#We only want to keep the samples used in the original COCA analysis
+coca_file <- synGet("syn1889916", downloadLocation = "~/pancan_data") #Download Hoadley et al.'s subtype assignments
+
+cocaog <- read.csv('~/pancan_data/CofC.noMut.K13.Hoadley.20130523.txt', sep = '\t') #This dataframe has Hoadley et al.'s assignments
+cocaog$Samples <- substr(cocaog$Samples,1,15)
+samples <- as.data.frame(cocaog$Samples)
+colnames(samples) <- 'ID'
+which(duplicated(samples)) #No duplicates
+
+samples12 <- samples
+samples12$ID <- substr(samples$ID,1,12)
+
+clusterdf12 <- left_join(samples12, rppaclust) #Joins the clusters from RPPA to samples via a left_join in tidyverse
+
+clusterdf <- as.data.frame(cbind(samples$ID, clusterdf12[,2])) #Change the names to 15 characters
+colnames(clusterdf) <- c("ID", "RPPA")
+
+#Put all subtype assignments into one dataframe
+
+clusterdf <- clusterdf %>% left_join(scnaclust[,c("ID", "k8")]) %>% 
+  left_join(methylationclust) %>% left_join(mrnaclust) %>% left_join(mirnaclust[,c("ID", "miRNA")])
+colnames(clusterdf) <- c("ID", "RPPA", "SCNA", "DNA_meth", "mRNA", "miRNA")
+
+#Create Matrix of Clusters from this
+
+N <- dim(clusterdf)[1] #Number of observations
+M <- dim(clusterdf)[2]-1 #Number of datasets
+
+# Number of clusters in each dataset
+K <- rep(0, M)
+for (i in 1:M) {
+  K[i] <- length(unique(na.omit(clusterdf[,i + 1])))
+}
+
+#Create matrix
+moc <- matrix(0, N, sum(K))
+rownames(moc) <- clusterdf$ID
+colnames(moc) <- rep(0, sum(K))
+
+#moc[n, j] should be 1 if n is in cluster 
+
+count = 0
+for (i in 1:length(K)){
+  for (ki in 1:K[i]){
+    colnames(moc)[count + ki] <- paste0(colnames(clusterdf)[i+1], "_", unique(na.omit(clusterdf[,i+1]))[ki])
+  }
+  count <- count + K[i]
+  print(count)
+}
+
+count = 0
+for (i in 1:length(K)){
+  for (ki in 1:K[i]){
+    #Fill in column by column
+    moc[,count + ki] <- clusterdf[,i + 1] == unique(na.omit(clusterdf[,i+1]))[ki]
+  }
+  count <- count + K[i] #cumulative counting
+  #print(count)
+}
+
+#'moc' is our Matrix of Clusters for clustering in COCA
+moc[is.na(moc)] <- 0 #Missing cluster assignements currently NA - make these 0 for analysis 
+```
+
+
+# Run VICatMix
+
+Perform the clustering, with 25 initialisations and 15 maximum clusters. Complete linkage and a 0.95 threshold for variable selection is used for the summarisation by default. The maximum number of clusters can be changed for coarser/broader clustering structures (eg. 40, as in the Supplementary Material).
+
+Uncomment the below lines to run the computation - these have been commented out so the Rmd file runs quickly.
+
+```{r computation}
+
+#set.seed(205) 
+#library(VICatMix)
+
+#library(foreach)
+#library(doParallel)
+#library(doRNG)
+#registerDoParallel(25)
+
+#moc[is.na(moc)] <- 0
+#cocaclust_avg <- runVICatMixAvg(moc, 15, 0.01, inits = 25, parallel = TRUE)
+
+```
+
+# Plots
+
+Load data for plotting - this is the output from the above computation.
+```{r load data}
+#Comment out the following line if VICatMix has been run by the user
+load("cocaclust_avg.RData")
+```
+
+## Heatmaps
+
+Create heatmaps with the 'pheatmap' package.
+```{r heatmaps 1}
+#Create heatmap depicting the Matrix of Clusters, cluster subtype assignements by VICatMix, and tissue of origin (Figure 7)
+
+cocaav15 <- cocaclust_avg$labels_avg
+
+currentAnnotationRow <- data.frame(
+  Cluster = factor(cocaav15),
+  Tissue = factor(cocaog$Tissue) #This dataset was loaded in earlier - consists of tissues of origin and Hoadley et al.'s subtype assignements
+)
+
+annotationColor <- list(Tissue  = c("BLCA" = "#f3c300", "BRCA" = "#875692", "COAD" = "#f38400", "GBM" = "#a1caf1", "HNSC" = "#be0032", "KIRC" = "#c2b280",
+                                    "LAML" = "#848482", "LUAD" = "#008856", "LUSC" = "#e68fac", "OV" = "#0067a5", "READ" = "#f99379", "UCEC" = "#604e97"),
+                        Cluster = c("1" = "#A6CEE3", "2" = "#1F78B4", "3" = "#B2DF8A", "4" = "#33A02C", "5" = "#FB9A99", "6" = "#E31A1C", "7" = "#FDBF6F", 
+                                    "8" = "#FF7F00", "9" = "#CAB2D6", "10" = "#6A3D9A", "11" = "#FFFF99", "12" = "#B15928", "13" = "#1ff8ff", "14" = "#1B9E77", "15" = "#D95F02")
+)
+
+rownames(currentAnnotationRow) <- rownames(moc)
+
+pheatmap(moc[order(cocaog$Tissue, cocaav15),], 
+         show_rownames = F, annotation_row = currentAnnotationRow, 
+         annotation_colors= annotationColor,
+         color = colorRampPalette(colors = c("white", "black"))(2),
+         cluster_rows = F, cluster_cols = F, fontsize = 8)
+```
+
+```{r percent heat}
+#Heatmap showing the correspondence between clusters produced by VICatMix-Avg and the tissues of origin (Figure 6)
+
+COCAPercentHeat15 <- matrix(0, nrow = 12, ncol = 15)
+tissuesandclusters <- as.data.frame(cbind(cocaog$Tissue, cocaav15))
+
+tissues <- levels(factor(cocaog$Tissue))
+
+for (i in 1:12){
+  for (j in 1:15){
+    COCAPercentHeat15[i, j] <- sum(tissuesandclusters$V1 == tissues[i] & tissuesandclusters$cocaav15 == j) / sum(cocaog$Tissue == tissues[i])
+  }
+}
+
+rownames(COCAPercentHeat15) <- levels(factor(cocaog$Tissue))
+colnames(COCAPercentHeat15) <- paste0(seq(ncol(COCAPercentHeat15)))
+
+pheatmap(COCAPercentHeat15, display_numbers = F, 
+         cluster_rows = F, cluster_cols = F, fontsize_number = 10,
+         color = colorRampPalette(colors = c("white", "black"))(198),
+         show_rownames = T, show_colnames = T, angle_col = 0)
+
+```
+
+
+
+## BRCA comparison
+Use PAM50 subtype assignments from Berger et al. (2018) (Supplementary Table S4) to compare our cluster assignments from VICatMix-Avg to PAM50 subtypes. This data is used under the terms of the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License (CC BY-NC-ND 4.0). (https://creativecommons.org/licenses/by-nc-nd/4.0/)
+
+```{r brca}
+
+COCAbestlabelsdf15 <- as.data.frame(cbind(cocaog, cocaav15)) #Combine tissue type and cluster assignment to one data frame
+PAM50 <- read.csv("TCGAPAM50_2018.csv", header = TRUE) #Load in PAM50 subtypes
+PAM50 <- PAM50 %>% select(Sample.ID, BRCA_Subtype_PAM50)
+BRCAcoca15 <- COCAbestlabelsdf15 %>% filter(Tissue == "BRCA")
+BRCAcoca15 <- BRCAcoca15 %>% 
+  mutate(Sample.ID = str_extract(Samples, "^.{1,12}"))
+
+BRCAcoca15 <- left_join(BRCAcoca15, PAM50, by = "Sample.ID")
+
+BRCAlist <- which(cocaog$Tissue == "BRCA") #Find which row numbers are BRCA samples
+
+BRCAmoc <- moc[BRCAlist,]
+
+currentAnnotationRow <- data.frame(
+  PAM50 = factor(BRCAcoca15$BRCA_Subtype_PAM50),
+  Cluster = factor(BRCAcoca15$cocaav15)
+)
+rownames(currentAnnotationRow) <- rownames(BRCAmoc)
+
+pheatmap(BRCAmoc[order(BRCAcoca15$cocaav15, BRCAcoca15$BRCA_Subtype_PAM50),], fontsize = 7,
+         show_rownames = F, annotation_row = currentAnnotationRow, 
+         #annotation_colors= annotationColor,
+         color = colorRampPalette(colors = c("white", "black"))(2),
+         cluster_rows = F, cluster_cols = F, name = "score")
+
+freqtableBRCA <- BRCAcoca15 %>% 
+  count(BRCA_Subtype_PAM50, cocaav15) %>% 
+  pivot_wider(names_from = cocaav15, values_from = n, values_fill = list(n = 0), names_sort = TRUE)
+#Gives us the number of BRCA samples in each cluster for each PAM50 subtype
+print(freqtableBRCA)
+
+```
