@@ -1,4 +1,5 @@
-#Simulation 2 (variable selection - 50/50, n = 2000 for fun)
+#Simulation 2 (variable selection - 50/50, n = 2000)
+#BHC is in a different file (simulation5b) due to memory usage
 
 library(tidyverse)
 library(mclust)
@@ -8,11 +9,7 @@ library(factoextra)
 library(stats)
 library(mcclust)
 library(mcclust.ext)
-source("Variational Mixture Model.R")
-source("VariationalMixtureModelVarSel.R")
-
-
-source("GenerateSampleData.R")
+library(VICatMix)
 set.seed(1931253)
 
 #Need function to generate BHC clusters
@@ -23,7 +20,7 @@ library(doParallel)
 library(doRNG)
 registerDoParallel(10)
 sim2varsel <- foreach(i = 1:10) %dorng% {
-  generation <- GenerateSampleData(2000, 10, c(0.1, 0.2, 0.1, 0.2, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1), 50, 50)
+  generation <- generateSampleDataBin(2000, 10, c(0.1, 0.2, 0.1, 0.2, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1), 50, 50)
   data <- generation[[1]]
   truelabels <- generation[[2]]
   itemLabels <- rownames(data)
@@ -38,9 +35,9 @@ sim2varsel <- foreach(i = 1:10) %dorng% {
   vicatmix_ELBO <- c()
   vicatmix_time <- c()
   vicatmix_clust <- c()
-  for (j in 1:10){
+  for (j in 1:25){
     start.time <- Sys.time()
-    vicatmix <- mixturemodel(data, 20, 0.05, 2000, 0.000005)
+    vicatmix <- runVICatMix(data, 20, 0.05, tol = 0.000005)
     end.time <- Sys.time()
     vicatmix_time[j] <- difftime(end.time, start.time, unit = "secs")
     vicatmix_labels[[j]] <- vicatmix$model$labels 
@@ -72,7 +69,7 @@ sim2varsel <- foreach(i = 1:10) %dorng% {
   vicatmixvs_vars <- list() #save selected variables
   for (j in 1:25){
     start.time <- Sys.time()
-    vicatmixvs <- mixturemodelvarsel(data, 20, 0.05, 2, 2000, 0.000005)
+    vicatmixvs <- runVICatMixVarSel(data, 20, 0.05, tol = 0.000005)
     end.time <- Sys.time()
     vicatmixvs_time[j] <- difftime(end.time, start.time, unit = "secs")
     vicatmixvs_labels[[j]] <- vicatmixvs$model$labels 
@@ -157,7 +154,7 @@ sim2varsel <- foreach(i = 1:10) %dorng% {
   #PReMiuM - CtsVarSel
   
   start.time <- Sys.time()
-  premiumModel3 <- profRegr(yModel=inputs$yModel, xModel=inputs$xModel, data=inputs$inputData, nSweeps=2500, nClusInit=20, nBurn=1000, output=paste0("output/varselsim2bin_", i), covNames = inputs$covNames, reportBurnIn = TRUE, excludeY = TRUE, varSelectType = 'Continuous', seed=sample.int(2^32-1, 1))
+  premiumModel3 <- profRegr(yModel=inputs$yModel, xModel=inputs$xModel, data=inputs$inputData, nSweeps=2500, nClusInit=20, nBurn=1000, output=paste0("output/varselsim2cts_", i), covNames = inputs$covNames, reportBurnIn = TRUE, excludeY = TRUE, varSelectType = 'Continuous', seed=sample.int(2^32-1, 1))
   dissimObj3 <-calcDissimilarityMatrix(premiumModel3)
   clusObj3   <-calcOptimalClustering(dissimObj3, maxNClusters=20)
   end.time <- Sys.time()

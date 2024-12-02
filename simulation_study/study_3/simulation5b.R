@@ -1,4 +1,5 @@
-#Simulation 2 (variable selection - 50/50, n = 2000 for fun)
+#Simulation 2 (variable selection - 50/50)
+#BHC in a separate file due to memory usage
 
 library(tidyverse)
 library(mclust)
@@ -7,9 +8,7 @@ library(factoextra)
 library(stats)
 library(mcclust)
 library(mcclust.ext)
-source("Variational Mixture Model.R")
-source("VariationalMixtureModelVarSel.R")
-load("~/VariationalMixtures/sim2varsel.RData")
+load("sim2varsel.RData")
 set.seed(1931253)
 
 #Need function to generate BHC clusters
@@ -90,4 +89,4 @@ sim2varselBHC <- foreach(i = 1:10) %dorng% {
   results_list
 }
 
-save(sim2varselBHC, file="/home/jr951/VariationalMixtures/sim2varselBHC.RData")
+save(sim2varselBHC, file="sim2varselBHC.RData")

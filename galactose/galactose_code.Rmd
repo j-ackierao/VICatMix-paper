@@ -1,0 +1,154 @@
+---
+title: "Yeast galactose data - code"
+author: "Jackie Rao"
+date: "`r Sys.Date()`"
+output:
+  BiocStyle::html_document:
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(pheatmap)
+library(RColorBrewer)
+```
+
+# Load and pre-process data
+
+Load the original continuous version of the 205-gene subset of the yeast galactose dataset by Ideker et al. (2001), and discretise this to a categorical dataset with 3 categories per column in line with analysis by Savage et al. (2010). Data consists expression measurements across 20 experiments (with 4 replicates each) representing perturbations of the yeast galactose utilization pathway. Each column represents 1 of 4 replicates of an experiment.
+
+## Load data 
+
+```{r load Data}
+
+#Load original continuous version of the data
+continuousData <- read.table("https://static-content.springer.com/esm/art%3A10.1186%2Fgb-2003-4-5-r34/MediaObjects/13059_2002_544_MOESM8_ESM.txt")
+
+#Format into data frame correctly - 205 yeast genes, 80 columns where there are 4 replicates of each of the 20 experiments
+savedColnames  <- continuousData[1,]
+continuousDataReduced <- continuousData[2:nrow(continuousData),]
+
+class    <- continuousDataReduced$V3
+ORF      <- continuousDataReduced$V1
+GeneName <- continuousDataReduced$V2
+reduced  <- continuousDataReduced[,4:ncol(continuousData)]
+
+colnames(reduced) <- savedColnames[4:ncol(continuousData)]
+
+reducedMatrix <- as.matrix(reduced)
+reducedMatrix <- apply(reducedMatrix, 2, as.numeric)
+rownames(reducedMatrix) <- ORF
+savedReducedMatrix <- reducedMatrix
+
+```
+
+## Discretise data
+
+Discretise the measured value for each gene into three categories, as in Savage et al. (2010), which represents under-, over- or unchanged expression. In the analysis from this paper, the authors used the Bayesian Hierarchical Clustering (BHC) package  (Savage et al., 2009)  to optimise binning, where the bins "0.25, 0.50, 0.25" were found to be optimal. We replicate this pre-processing in R.
+
+```{r discretise}
+# Recreate the discretised galactose dataset from the continuous version
+
+# First take the average (mean) over the replicates:
+reducedMatrix <- matrix(nrow = 205, ncol = 20)
+for(j in 1:20)
+{
+  startIndex <- ((j-1)*4) + 1
+  endIndex   <- startIndex + 3
+  reducedMatrix[, j] <- rowMeans(savedReducedMatrix[,startIndex:endIndex])
+}  
+
+# Now discretise using the following percentiles: 0.25, 0.50, 0.25, as in Savage et al. (2010)
+
+galactose <- reducedMatrix
+for(j in 1:205)
+{
+
+  currentData     = reducedMatrix[j,]
+  lowerPercentile = quantile(currentData, 0.25);
+  upperPercentile = quantile(currentData, 1-0.25);
+  ##identify the discrete data values
+  newData                              = seq(1,1, length = length(currentData));
+  newData[currentData>lowerPercentile] = 2; ##bit of duplication here
+  newData[currentData>upperPercentile] = 3;
+  ##copy the current data back into thedata array
+  galactose[j,] <- newData
+} 
+
+rownames(galactose) <- rownames(savedReducedMatrix)
+colnames(galactose) <- paste0("Exp_", seq(1,20)) 
+
+```
+
+
+# Run VICatMix
+
+Perform the clustering on our data frame 'galactose' for both K_init = 4 and K_init = 20, with 30 initialisations. Complete linkage and a 0.95 threshold for variable selection is used for the summarisation by default.
+
+Uncomment the below lines to run the computation - these have been commented out so the Rmd file runs quickly.
+
+```{r computation}
+
+#library(VICatMix)
+#set.seed(205)
+
+#library(foreach)
+#library(doParallel)
+#library(doRNG)
+#registerDoParallel(30)
+
+#start.time <- Sys.time()
+#bigclust <- runVICatMixAvg(galactose, 10, 0.01, inits = 30, parallel = TRUE)
+#end.time <- Sys.time()
+#bigclust.timetaken <- end.time - start.time
+
+#start.time2 <- Sys.time()
+#littleclust <- runVICatMixAvg(galactose, 4, 0.01, inits = 30, parallel = TRUE)
+#end.time2 <- Sys.time()
+#littleclust.timetaken <- end.time2 - start.time2
+
+#galactosedata_avg <- list()
+#galactosedata_avg$bigtime <- bigclust.timetaken
+#galactosedata_avg$littletime <- littleclust.timetaken
+#galactosedata_avg$Avg10Clust <- bigclust$labels_avg
+#galactosedata_avg$Avg4Clust <- littleclust$labels_avg
+
+#save(galactosedata_avg, file="galactosedata_avg.RData")
+
+```
+
+# Plots
+
+## Heatmaps
+
+Load data for plotting - this is the output from the above computation.
+```{r load data}
+#Comment out the following line if VICatMix has been run by the user
+load("galactosedata_avg.RData")
+```
+
+Create heatmaps with the 'pheatmap' package. Example below is for K = 10 simulation (Figure 3 of paper).
+```{r heatmaps}
+
+realgalactoselabels <- class
+
+currentAnnotationRow <- data.frame(
+  VICatMixAvg = factor(galactosedata_avg$Avg10Clust), #Change to Avg4Clust for K = 4
+  GOclass = factor(realgalactoselabels)
+)
+rownames(currentAnnotationRow) <- rownames(galactose) 
+pheatmap(galactose[order(galactosedata_avg$Avg10Clust),], #Change to Avg4Clust for K = 4
+         cluster_rows = F, show_rownames = F, show_colnames = F, 
+         color = colorRampPalette(colors = c("steelblue", "white", "indianred"))(3),
+         annotation_row = currentAnnotationRow, cluster_cols = F
+)
+
+
+```
+```{r ARI}
+#Example of getting ARI
+
+library(mclust)
+adjustedRandIndex(realgalactoselabels, galactosedata_avg$Avg4Clust)
+```
+

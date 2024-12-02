@@ -9,10 +9,7 @@ library(factoextra)
 library(stats)
 library(mcclust)
 library(mcclust.ext)
-source("Variational Mixture Model.R")
-source("VariationalMixtureModelVarSel.R")
-
-source("GenerateSampleData.R")
+library(VICatMix)
 set.seed(2321218)
 
 #Need function to generate BHC clusters
@@ -67,7 +64,7 @@ library(doParallel)
 library(doRNG)
 registerDoParallel(10)
 sim1varsel <- foreach(i = 1:10) %dorng% {
-  generation <- GenerateSampleData(1000, 10, c(0.1, 0.2, 0.1, 0.2, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1), 75, 25)
+  generation <- generateSampleDataBin(1000, 10, c(0.1, 0.2, 0.1, 0.2, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1), 75, 25)
   data <- generation[[1]]
   truelabels <- generation[[2]]
   itemLabels <- rownames(data)
@@ -84,7 +81,7 @@ sim1varsel <- foreach(i = 1:10) %dorng% {
   vicatmix_clust <- c()
   for (j in 1:25){
     start.time <- Sys.time()
-    vicatmix <- mixturemodel(data, 20, 0.05, 2000, 0.000005)
+    vicatmix <- runVICatMix(data, 20, 0.05, tol = 0.000005)
     end.time <- Sys.time()
     vicatmix_time[j] <- difftime(end.time, start.time, unit = "secs")
     vicatmix_labels[[j]] <- vicatmix$model$labels 
@@ -116,7 +113,7 @@ sim1varsel <- foreach(i = 1:10) %dorng% {
   vicatmixvs_vars <- list() #save selected variables
   for (j in 1:25){
     start.time <- Sys.time()
-    vicatmixvs <- mixturemodelvarsel(data, 20, 0.05, 2, 2000, 0.000005)
+    vicatmixvs <- runVICatMixVarSel(data, 20, 0.05, tol = 0.000005)
     end.time <- Sys.time()
     vicatmixvs_time[j] <- difftime(end.time, start.time, unit = "secs")
     vicatmixvs_labels[[j]] <- vicatmixvs$model$labels 

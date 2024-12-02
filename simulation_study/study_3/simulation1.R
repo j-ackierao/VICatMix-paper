@@ -10,8 +10,7 @@ library(factoextra)
 library(stats)
 library(mcclust)
 library(mcclust.ext)
-source("Variational Mixture Model.R")
-source("GenerateSampleData.R")
+library(VICatMix)
 set.seed(2321214)
 
 #Need function to generate BHC clusters
@@ -66,7 +65,8 @@ library(doParallel)
 library(doRNG)
 registerDoParallel(10)
 sim1novarsel <- foreach(i = 1:10) %dorng% {
-  generation <- GenerateSampleData(1000, 10, rep(0.1, 10), 100, 0)
+  
+  generation <- generateSampleDataBin(1000, 10, rep(0.1, 10), 100, 0)
   data <- generation[[1]]
   truelabels <- generation[[2]]
   itemLabels <- rownames(data)
@@ -77,13 +77,14 @@ sim1novarsel <- foreach(i = 1:10) %dorng% {
                               ARI = NA, Clusters = NA, Time = NA)
   #Try every model
   #VICatMix
+  #Manually run the model averaging so we can extract model with the best ELBO 
   vicatmix_labels <- list() #save labels 
   vicatmix_ELBO <- c()
   vicatmix_time <- c()
   vicatmix_clust <- c()
   for (j in 1:25){
     start.time <- Sys.time()
-    vicatmix <- mixturemodel(data, 20, 0.05, 2000, 0.000005)
+    vicatmix <- runVICatMix(data, 20, 0.05, tol = 0.000005)
     end.time <- Sys.time()
     vicatmix_time[j] <- difftime(end.time, start.time, unit = "secs")
     vicatmix_labels[[j]] <- vicatmix$model$labels 
@@ -196,4 +197,4 @@ sim1novarsel <- foreach(i = 1:10) %dorng% {
   final_result
 }
 
-save(sim1novarsel, file="/home/jr951/VariationalMixtures/sim1novarsel.RData")
+save(sim1novarsel, file="sim1novarsel.RData")
