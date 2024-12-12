@@ -1,11 +1,10 @@
-#Testing using different runs - for supplement
+#Testing using different runs - for supplement (Section S5.2.1)
 
 library(tidyverse)
 library(mclust)
 library(mcclust)
 library(mcclust.ext)
-source("Variational Mixture Model.R")
-source("GenerateSampleData.R")
+library(VICatMix)
 
 set.seed(13224)
 
@@ -16,13 +15,13 @@ registerDoParallel(10)
 
 whichrunsinpsm <- foreach(i = 1:10) %dorng% {
   #10 independently generated datasets
-  generation <- GenerateSampleData(1000, 10, c(0.1, 0.2, 0.1, 0.2, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1), 100, 0)
+  generation <- generateSampleDataBin(1000, 10, c(0.1, 0.2, 0.1, 0.2, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1), 100, 0)
   data <- generation[[1]]
   truelabels <- generation[[2]]
   resultforpsm <- list()
   for (j in 1:50){
     #50 possible runs for each dataset
-    mix <- mixturemodel(data, 30, 0.05, 2000, 0.00005)
+    mix <- runVICatMix(data, 30, 0.05, tol = 0.00005)
     resultforpsm[[j]] <- mix$model$labels
   }
   all_result <- list()
@@ -61,4 +60,4 @@ whichrunsinpsm <- foreach(i = 1:10) %dorng% {
   all_result
 }
 
-save(whichrunsinpsm, file="/home/jr951/VariationalMixtures/whichrunsinpsm.RData")
+save(whichrunsinpsm, file="whichrunsinpsm.RData")

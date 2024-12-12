@@ -4,8 +4,7 @@ library(tidyverse)
 library(mclust)
 library(mcclust)
 library(mcclust.ext)
-source("Variational Mixture Model.R")
-source("GenerateSampleData.R")
+library(VICatMix)
 
 set.seed(992200)
 
@@ -15,12 +14,12 @@ library(doRNG)
 registerDoParallel(10)
 
 psmtestsuneven <- foreach(i = 1:10) %dorng% {
-  generation <- GenerateSampleData(1000, 10, c(0.4, 0.2, 0.1, 0.08, 0.05, 0.05, 0.05, 0.05, 0.01, 0.01), 100, 0)
+  generation <- generateSampleDataBin(1000, 10, c(0.4, 0.2, 0.1, 0.08, 0.05, 0.05, 0.05, 0.05, 0.01, 0.01), 100, 0)
   data <- generation[[1]]
   truelabels <- generation[[2]]
   resultforpsm <- list()
   for (j in 1:30){
-    mix <- mixturemodel(data, 30, 0.05, 2000, 0.00005)
+    mix <- runVICatMix(data, 30, 0.05, tol = 0.00005)
     resultforpsm[[j]] <- mix$model$labels
   }
   run_nums <- c(5, 10, 15, 20, 25, 30)
@@ -73,6 +72,6 @@ psmtestsuneven <- foreach(i = 1:10) %dorng% {
   all_result
 }
 
-save(psmtestsuneven, file="/home/jr951/VariationalMixtures/psmtestsuneven.RData")
+save(psmtestsuneven, file="psmtestsuneven.RData")
 
 

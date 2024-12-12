@@ -5,8 +5,10 @@ library(ggpubr)
 library(tidyverse)
 
 ######################
-#SIMULATION 1: n = 1000, p = 100, 10 clusters, no var sel
+#SIMULATION 2.1: n = 1000, p = 100, 10 clusters, no var sel
 
+#Create a grouped box plot (Figure 2)
+psmmean1 <- bind_rows(lapply(psmtests1000, "[[", 7), .id = "data_number")
 for (i in 1:10){
   psmtests1000[[i]] <- bind_rows(psmtests1000[[i]], .id = "run_number")
 }
@@ -14,10 +16,9 @@ psmtests1000 <- bind_rows(psmtests1000, .id = "data_number")
 psmtests1000a <- psmtests1000[psmtests1000$run_number != 7,]
 psmtests1000a$run_num <- as.factor(psmtests1000a$run_num)
 
-#Adding means into the mix and making a grouped box plot
-psmmean1 <- bind_rows(lapply(psmtests1000, "[[", 7), .id = "data_number")
 run_nums <- c(5, 10, 15, 20, 25, 30)
 
+#Get Grand Mean results (grand mean of individual runs)
 psmmean1comp <- list()
 for (i in 1:6){
   psmmeantemp <- psmmean1 %>% filter(run_num <= run_nums[i]) %>%
@@ -38,13 +39,18 @@ psmmean1comp$model[psmmean1comp$model == 'VIcomp'] <- 'VoIcomp'
 ggplot(psmmean1comp, aes(x = run_num, y = ARI, fill = model)) + stat_boxplot(geom = "errorbar", width = 0.5, position = position_dodge(width = 0.76)) + geom_boxplot(inherit.aes = TRUE, fatten = 1) + theme_bw()
 ggplot(psmmean1comp, aes(x = run_num, y = Clusters, fill = model)) + geom_hline(yintercept = 10, linetype = 'dashed') + stat_boxplot(geom = "errorbar", width = 0.5, position = position_dodge(width = 0.76)) + geom_boxplot(inherit.aes = TRUE, fatten = 1) + theme_bw()
 
+#Run Wilcoxon rank sum tests (can change 'psmmean1comp' for other simulations)
 wilcox.test(ARI ~ run_num, data = psmmean1comp[psmmean1comp$model == "VoIavg",], paired = TRUE)
 
 pairwise.wilcox.test(x = psmmean1comp[psmmean1comp$model == "VoIcomp",]$ARI, g = psmmean1comp[psmmean1comp$model == "VoIcomp",]$run_num, p.adjust.method = "bonf", paired = TRUE)
 pairwise.wilcox.test(x = psmmean1comp[psmmean1comp$run_num == "20",]$ARI, g = psmmean1comp[psmmean1comp$run_num == "20",]$model, p.adjust.method = "bonf", paired = TRUE)
 
 ######################
-#SIMULATION 2: n = 1000, p = 100, 10 clusters, no var sel, uneven
+#SIMULATION 2.2: n = 1000, p = 100, 10 clusters, no var sel, uneven
+
+#Making grouped box plot (Figure S7)
+
+psmmean3 <- bind_rows(lapply(psmtestsuneven, "[[", 7), .id = "data_number")
 for (i in 1:10){
   psmtestsuneven[[i]] <- bind_rows(psmtestsuneven[[i]], .id = "run_number")
 }
@@ -53,9 +59,9 @@ psmtestsunevena <- bind_rows(psmtestsuneven, .id = "data_number")
 psmtestsunevena <- psmtestsunevena[psmtestsunevena$run_number != 7,]
 psmtestsunevena$run_num <- as.factor(psmtestsunevena$run_num)
 
-psmmean3 <- bind_rows(lapply(psmtestsuneven, "[[", 7), .id = "data_number")
 run_nums <- c(5, 10, 15, 20, 25, 30)
 
+#Grand Mean results
 psmmean3comp <- list()
 for (i in 1:6){
   psmmeantemp <- psmmean3 %>% filter(run_num <= run_nums[i]) %>%
@@ -78,7 +84,9 @@ ggplot(psmmean3comp, aes(x = run_num, y = Clusters, fill = model)) + geom_hline(
 
 
 ######################
-#SIMULATION 3: n = 2000, p = 100, 20 clusters, no var sel
+#SIMULATION 2.3: n = 2000, p = 100, 20 clusters, no var sel
+#Make grouped box plot (Figure S8)
+psmmean2 <- bind_rows(lapply(psmtests2000, "[[", 7), .id = "data_number")
 for (i in 1:10){
   psmtests2000[[i]] <- bind_rows(psmtests2000[[i]], .id = "run_number")
 }
@@ -86,7 +94,6 @@ psmtests2000a <- bind_rows(psmtests2000, .id = "data_number")
 psmtests2000a <- psmtests2000a[psmtests2000a$run_number != 7,]
 psmtests2000a$run_num <- as.factor(psmtests2000a$run_num)
 
-psmmean2 <- bind_rows(lapply(psmtests2000, "[[", 7), .id = "data_number")
 run_nums <- c(5, 10, 15, 20, 25, 30)
 
 psmmean2comp <- list()
@@ -110,7 +117,10 @@ ggplot(psmmean2comp, aes(x = run_num, y = ARI, fill = model)) + stat_boxplot(geo
 ggplot(psmmean2comp, aes(x = run_num, y = Clusters, fill = model)) + geom_hline(yintercept = 20, linetype = 'dashed') + stat_boxplot(geom = "errorbar", width = 0.5, position = position_dodge(width = 0.76)) + geom_boxplot(inherit.aes = TRUE, fatten = 1) + theme_bw()
 
 ##############################
-#Variable selection Simulation 1: 
+#SIMULATION 2.4 (variable selection)
+
+#Make grouped box plot as before (Figure S9)
+psmmeanvar1 <- bind_rows(lapply(psmtestsvarsel1, "[[", 7), .id = "data_number")
 psmtestsvarsel1a <- lapply(psmtestsvarsel1, head, -2)
 for (i in 1:10){
   psmtestsvarsel1a[[i]] <- bind_rows(psmtestsvarsel1a[[i]], .id = "run_number")
@@ -126,7 +136,6 @@ psmvarselmean <- psmvarselmean %>%
 psmtestsvarsel1a <- merge(x=psmtestsvarsel1a,y=psmvarselmean, 
                           by="data_number", all.x=TRUE)
 
-psmmeanvar1 <- bind_rows(lapply(psmtestsvarsel1, "[[", 7), .id = "data_number")
 run_nums <- c(5, 10, 15, 20, 25, 30)
 
 psmmeanvar1comp <- list()
@@ -150,8 +159,10 @@ ggplot(psmmeanvar1comp, aes(x = run_num, y = ARI, fill = model)) + stat_boxplot(
 ggplot(psmmeanvar1comp, aes(x = run_num, y = Clusters, fill = model)) + geom_hline(yintercept = 10, linetype = 'dashed') + stat_boxplot(geom = "errorbar", width = 0.5, position = position_dodge(width = 0.76)) + geom_boxplot(inherit.aes = TRUE, fatten = 1) + theme_bw()
 
 #############
-#Variable selection simulation 2
+#SIMULATION 2.5 (variable selection)
+#Make grouped box plot as before (Figure S10)
 
+psmmeanvar2 <- bind_rows(lapply(psmtestsvarsel2, "[[", 7), .id = "data_number")
 psmtestsvarsel2a <- lapply(psmtestsvarsel2, head, -2)
 for (i in 1:10){
   psmtestsvarsel2a[[i]] <- bind_rows(psmtestsvarsel2a[[i]], .id = "run_number")
@@ -159,7 +170,7 @@ for (i in 1:10){
 psmtestsvarsel2a <- bind_rows(psmtestsvarsel2a, .id = "data_number")
 
 psmtestsvarsel2a$run_num <- as.factor(psmtestsvarsel2a$run_num)
-psmmeanvar2 <- bind_rows(lapply(psmtestsvarsel2, "[[", 7), .id = "data_number")
+
 run_nums <- c(5, 10, 15, 20, 25, 30)
 
 psmmeanvar2comp <- list()
@@ -183,7 +194,9 @@ ggplot(psmmeanvar2comp, aes(x = run_num, y = ARI, fill = model)) + stat_boxplot(
 ggplot(psmmeanvar2comp, aes(x = run_num, y = Clusters, fill = model)) + geom_hline(yintercept = 10, linetype = 'dashed') + stat_boxplot(geom = "errorbar", width = 0.5, position = position_dodge(width = 0.76)) + geom_boxplot(inherit.aes = TRUE, fatten = 1) + theme_bw()
 
 ############
-#Looking at selected variables 
+#LOOKING AT SELECTED VARIABLES (eg. Figure S11)
+
+#Simulation 2.4
 
 psmvariables <- lapply(psmtestsvarsel1, "[[", 8)
 psmvariables <- lapply(psmvariables, function(x) t(matrix(unlist(x), 100, 30)))
@@ -225,7 +238,8 @@ psmthresholds$run_num <- as.factor(psmthresholds$run_num)
 ggplot(psmthresholds, aes(x = run_num, y = Rel, fill = model)) + stat_boxplot(geom = "errorbar", width = 0.5, position = position_dodge(width = 0.76)) + geom_boxplot(inherit.aes = TRUE, fatten = 1) + theme_bw() + geom_hline(yintercept = 75, linetype = 'dotted')
 ggplot(psmthresholds, aes(x = run_num, y = Irrel, fill = model)) + stat_boxplot(geom = "errorbar", width = 0.5, position = position_dodge(width = 0.76)) + geom_boxplot(inherit.aes = TRUE, fatten = 1) + theme_bw() + geom_hline(yintercept = 25, linetype = 'dotted')
 ###############
-#Simulation 2 for variables selected
+#LOOKING AT SELECTED VARIABLES (eg. Figure S12)
+#Simulation 2.5
 
 psmvariables2 <- lapply(psmtestsvarsel2, "[[", 8)
 psmvariables2 <- lapply(psmvariables2, function(x) t(matrix(unlist(x), 100, 30)))
@@ -268,7 +282,18 @@ psmthresholds2 <- bind_rows(psmthresholds2, psmtestsvarsel2a)
 ggplot(psmthresholds2, aes(x = run_num, y = Rel, fill = model)) + stat_boxplot(geom = "errorbar", width = 0.5, position = position_dodge(width = 0.76)) + geom_boxplot(inherit.aes = TRUE, fatten = 1) + theme_bw() + geom_hline(yintercept = 50, linetype = 'dotted')
 ggplot(psmthresholds2, aes(x = run_num, y = Irrel, fill = model)) + stat_boxplot(geom = "errorbar", width = 0.5, position = position_dodge(width = 0.76)) + geom_boxplot(inherit.aes = TRUE, fatten = 1) + theme_bw() + geom_hline(yintercept = 50, linetype = 'dotted')
 
-#Robustness to different initialisations (for supplement)
+###
+#F1 scores for Simulations 2.4 and 2.5
+
+psmthresholds$F1 <- (2 * psmthresholds$Rel) / ((2 * psmthresholds$Rel) + (25 - psmthresholds$Irrel) + (75 - psmthresholds$Rel))
+psmthresholds2$F1 <- (2 * psmthresholds2$Rel) / ((2 * psmthresholds2$Rel) + (25 - psmthresholds2$Irrel) + (75 - psmthresholds2$Rel))
+
+psmthresholds %>% group_by(run_num, model) %>% filter(run_num == 25 | run_num == 30) %>% dplyr::summarize(Mean_F1 = mean(F1, na.rm=TRUE))
+
+
+###
+
+#Robustness to different initialisations (for supplement) (Section S5.2.1)
 for (i in 1:10){
   whichrunsinpsm[[i]] <- bind_rows(whichrunsinpsm[[i]][1:10], .id = "run_number")
 }
@@ -278,13 +303,61 @@ whichrunsinpsm %>%
   group_by(data_number) %>%
   dplyr::summarize(Mean_ARI = mean(ogmean, na.rm=TRUE), Var_ARI = var(ARI, na.rm=TRUE))
 
-###
-#F1 scores
+##
 
-psmthresholds$F1 <- (2 * psmthresholds$Rel) / ((2 * psmthresholds$Rel) + (25 - psmthresholds$Irrel) + (75 - psmthresholds$Rel))
-psmthresholds2$F1 <- (2 * psmthresholds2$Rel) / ((2 * psmthresholds2$Rel) + (25 - psmthresholds2$Irrel) + (75 - psmthresholds2$Rel))
+#Experiments for model averaging changing the initial value of K (Section S5.2.2)
 
-psmthresholds %>% group_by(run_num, model) %>% filter(run_num == 25 | run_num == 30) %>% dplyr::summarize(Mean_F1 = mean(F1, na.rm=TRUE))
+#4 true clusters
+for (i in 1:10){
+  Kexp1_avg[[i]] <- bind_rows(Kexp1_avg[[i]], .id = "run_number")
+}
+Kexp1_avg <- bind_rows(Kexp1_avg, .id = "data_number")
+avclust <- Kexp1_avg %>%
+  group_by(K) %>%
+  dplyr::summarize(clustmean = mean(Clusters, na.rm=TRUE))
+avARI <- Kexp1_avg %>%
+  group_by(K) %>%
+  dplyr::summarize(ARImean = mean(ARI, na.rm=TRUE))
+
+
+ggplot() +
+  geom_count(data = Kexp1_avg, aes(x=K, y=Clusters), shape = 19, alpha = 0.5, color = "darkgreen") +
+  theme_bw() + xlab("K_init") + geom_hline(yintercept=4, linetype="dashed", color = "gray") +
+  geom_line(data = avclust, aes(x = K, y = clustmean, group = 1)) + geom_point(data = avclust, aes(x = K, y = clustmean, group = 1))
+
+ggplot() +
+  geom_jitter(data = Kexp1_avg, aes(x=K, y=ARI, colour=data_number), width = 0, height = 0, shape = 19, alpha = 0.5, color = "darkgreen") +
+  theme_bw() + xlab("K_init") + geom_vline(xintercept=4, linetype="dashed", color = "gray") +
+  geom_line(data = avARI, aes(x = K, y = ARImean, group = 1)) + geom_point(data = avARI, aes(x = K, y = ARImean, group = 1))
+
+
+#10 true clusters
+for (i in 1:10){
+  Kexp2_avg[[i]] <- bind_rows(Kexp2_avg[[i]], .id = "run_number")
+}
+Kexp2_avg <- bind_rows(Kexp2_avg, .id = "data_number")
+avclust <- Kexp2_avg %>%
+  group_by(K) %>%
+  dplyr::summarize(clustmean = mean(Clusters, na.rm=TRUE))
+avARI <- Kexp2_avg %>%
+  group_by(K) %>%
+  dplyr::summarize(ARImean = mean(ARI, na.rm=TRUE))
+
+
+ggplot() +
+  geom_count(data = Kexp2_avg, aes(x=K, y=Clusters), shape = 19, alpha = 0.5, color = "darkgreen") +
+  theme_bw() + xlab("K_init") + geom_hline(yintercept=10, linetype="dashed", color = "gray") +
+  geom_line(data = avclust, aes(x = K, y = clustmean, group = 1)) + geom_point(data = avclust, aes(x = K, y = clustmean, group = 1))
+
+ggplot() +
+  geom_jitter(data = Kexp2_avg, aes(x=K, y=ARI, colour=data_number), width = 0, height = 0, shape = 19, alpha = 0.5, color = "darkgreen") +
+  theme_bw() + xlab("K_init") + geom_vline(xintercept=10, linetype="dashed", color = "gray") +
+  geom_line(data = avARI, aes(x = K, y = ARImean, group = 1)) + geom_point(data = avARI, aes(x = K, y = ARImean, group = 1)) + ylim(0.1, 1)
+
+
+
+
+
 
 
 

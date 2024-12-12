@@ -4,8 +4,7 @@ library(tidyverse)
 library(mclust)
 library(mcclust)
 library(mcclust.ext)
-source("VariationalMixtureModelVarSel.R")
-source("GenerateSampleData.R")
+library(VICatMix)
 
 set.seed(1434)
 
@@ -15,13 +14,13 @@ library(doRNG)
 registerDoParallel(10)
 
 psmtestsvarsel1 <- foreach(i = 1:10) %dorng% {
-  generation <- GenerateSampleData(1000, 10, c(0.1, 0.2, 0.1, 0.2, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1), 75, 25)
+  generation <- generateSampleDataBin(1000, 10, c(0.1, 0.2, 0.1, 0.2, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1), 75, 25)
   data <- generation[[1]]
   truelabels <- generation[[2]]
   resultforpsm <- list()
   resultforvars <- list()
   for (j in 1:30){
-    mix <- mixturemodelvarsel(data, 30, 0.05, 2, 2000, 0.00005)
+    mix <- runVICatMixVarSel(data, 30, 0.05, tol = 0.00005)
     resultforpsm[[j]] <- mix$model$labels
     resultforvars[[j]] <- mix$model$c
   }
@@ -68,6 +67,6 @@ psmtestsvarsel1 <- foreach(i = 1:10) %dorng% {
   all_result
 }
 
-save(psmtestsvarsel1, file="/home/jr951/VariationalMixtures/psmtestsvarsel1.RData")
+save(psmtestsvarsel1, file="psmtestsvarsel1.RData")
 
 

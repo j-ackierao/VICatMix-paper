@@ -1,11 +1,9 @@
-#Summarisation of multiple runs of variational model: Tests with normal PS<
+#Summarisation of multiple runs of variational model: Simulation 2.3
 
 library(tidyverse)
 library(mclust)
 library(mcclust)
-library(mcclust.ext)
-source("Variational Mixture Model.R")
-source("GenerateSampleData.R")
+library(VICatMix)
 
 set.seed(992200)
 
@@ -15,12 +13,12 @@ library(doRNG)
 registerDoParallel(10)
 
 psmtests2000 <- foreach(i = 1:10) %dorng% {
-  generation <- GenerateSampleData(2000, 20, rep(c(0.1, 0.2, 0.1, 0.2, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1), 2), 100, 0)
+  generation <- generateSampleDataBin(2000, 20, rep(c(0.1, 0.2, 0.1, 0.2, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1), 2), 100, 0)
   data <- generation[[1]]
   truelabels <- generation[[2]]
   resultforpsm <- list()
   for (j in 1:30){
-    mix <- mixturemodel(data, 40, 0.05, 2000, 0.00005)
+    mix <- runVICatMix(data, 40, 0.05, tol = 0.00005)
     resultforpsm[[j]] <- mix$model$labels
   }
   run_nums <- c(5, 10, 15, 20, 25, 30)
@@ -63,6 +61,6 @@ psmtests2000 <- foreach(i = 1:10) %dorng% {
   all_result
 }
 
-save(psmtests2000, file="/home/jr951/VariationalMixtures/psmtests2000.RData")
+save(psmtests2000, file="psmtests2000.RData")
 
 
