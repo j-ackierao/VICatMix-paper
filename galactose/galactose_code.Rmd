@@ -140,6 +140,7 @@ rownames(currentAnnotationRow) <- rownames(galactose)
 pheatmap(galactose[order(galactosedata_avg$Avg10Clust),], #Change to Avg4Clust for K = 4
          cluster_rows = F, show_rownames = F, show_colnames = F, 
          color = colorRampPalette(colors = c("steelblue", "white", "indianred"))(3),
+         legend_breaks = c(1.2, 2, 2.8), legend_labels = c(-1, 0, 1),
          annotation_row = currentAnnotationRow, cluster_cols = F
 )
 

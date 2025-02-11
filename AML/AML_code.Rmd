@@ -101,12 +101,13 @@ aml_genes <- colnames(mtx.b)[amlclust_avg$varsel_avg == 1]
 #Heatmap with selected variables
 pheatmap(mtx.b[order(labels),aml_genes], cluster_rows = F,
          color = colorRampPalette(colors = c("white", "black"))(2),
-         annotation_row = currentAnnotationRow, cluster_cols = F, show_rownames = F, show_colnames = T)
+         annotation_row = currentAnnotationRow, cluster_cols = F, show_rownames = F, show_colnames = T,
+         legend_breaks = c(0.25, 0.75), legend_labels = c(0, 1))
 #Heatmap with all variables
 pheatmap(mtx.b[order(labels), sample(1:151)], cluster_rows = F,
          color = colorRampPalette(colors = c("white", "black"))(2),
-         annotation_row = currentAnnotationRow, cluster_cols = F, show_rownames = F, show_colnames = F)
-
+         annotation_row = currentAnnotationRow, cluster_cols = F, show_rownames = F, show_colnames = F,
+         legend_breaks = c(0.25, 0.75), legend_labels = c(0, 1))
 
 ```
 
